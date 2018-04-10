@@ -24,7 +24,8 @@ import (
 	"github.com/status-im/status-go/geth/mailservice"
 	"github.com/status-im/status-go/geth/params"
 	shhmetrics "github.com/status-im/status-go/metrics/whisper"
-	"github.com/status-im/status-go/shhext"
+	"github.com/status-im/status-go/services/personal"
+	"github.com/status-im/status-go/services/shhext"
 )
 
 // node-related errors
@@ -74,6 +75,10 @@ func MakeNode(config *params.NodeConfig) (*node.Node, error) {
 	// Start Ethereum service if we are not expected to use an upstream server.
 	if !config.UpstreamConfig.Enabled {
 		if err := activateEthService(stack, config); err != nil {
+			return nil, fmt.Errorf("%v: %v", ErrEthServiceRegistrationFailure, err)
+		}
+	} else {
+		if err := activatePersonalService(stack, config); err != nil {
 			return nil, fmt.Errorf("%v: %v", ErrEthServiceRegistrationFailure, err)
 		}
 	}
@@ -154,6 +159,13 @@ func activateEthService(stack *node.Node, config *params.NodeConfig) error {
 	}
 
 	return nil
+}
+
+func activatePersonalService(stack *node.Node, config *params.NodeConfig) error {
+	return stack.Register(func(*node.ServiceContext) (node.Service, error) {
+		svc := personal.New(stack.AccountManager())
+		return svc, nil
+	})
 }
 
 // activateShhService configures Whisper and adds it to the given node.

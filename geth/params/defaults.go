@@ -30,7 +30,7 @@ const (
 	ListenAddr = ":0"
 
 	// APIModules is a list of modules to expose via any type of RPC (HTTP, IPC, in-proc)
-	APIModules = "eth,net,web3,shh,shhext"
+	APIModules = "eth,net,web3,shh,shhext,personal"
 
 	// WSHost is a host interface for the websocket RPC server
 	WSHost = "localhost"
