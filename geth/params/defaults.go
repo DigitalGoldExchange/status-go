@@ -1,5 +1,7 @@
 package params
 
+import "github.com/ethereum/go-ethereum/p2p/discv5"
+
 const (
 	// ClientIdentifier is client identifier to advertise over the network
 	ClientIdentifier = "StatusIM"
@@ -111,4 +113,18 @@ const (
 
 	// StatusChainNetworkID is id of a test network (private chain)
 	StatusChainNetworkID = 777
+
+	// WhisperDiscv5Topic used to register and search for whisper peers using discovery v5.
+	WhisperDiscv5Topic = discv5.Topic("whisper")
+
+	// LesDiscv5Topic used to register and search for light ethereum peers using discovery v5.
+	LesDiscv5Topic = discv5.Topic("les")
+)
+
+var (
+	// WhisperDiscv5Limits declares min and max limits for peers with whisper topic.
+	WhisperDiscv5Limits = Limits{2, 2}
+
+	// LesDiscv5Limits declares min and max limits for peers with les topic
+	LesDiscv5Limits = Limits{1, 1}
 )

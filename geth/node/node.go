@@ -119,10 +119,12 @@ func defaultEmbeddedNodeConfig(config *params.NodeConfig) *node.Config {
 	}
 
 	if config.ClusterConfig.Enabled {
-		nc.P2P.StaticNodes = parseNodes(config.ClusterConfig.StaticNodes)
-		nc.P2P.BootstrapNodesV5 = parseNodesV5(config.ClusterConfig.BootNodes)
+		if config.Discovery {
+			nc.P2P.BootstrapNodesV5 = parseNodesV5(config.ClusterConfig.BootNodes)
+		} else {
+			nc.P2P.StaticNodes = parseNodes(config.ClusterConfig.StaticNodes)
+		}
 	}
-
 	return nc
 }
 
@@ -146,7 +148,6 @@ func activateEthService(stack *node.Node, config *params.NodeConfig) error {
 	ethConf.SyncMode = downloader.LightSync
 	ethConf.NetworkId = config.NetworkID
 	ethConf.DatabaseCache = config.LightEthConfig.DatabaseCache
-
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 		return les.New(ctx, &ethConf)
 	}); err != nil {

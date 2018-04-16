@@ -14,26 +14,21 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	gethparams "github.com/ethereum/go-ethereum/params"
 	"github.com/status-im/status-go/geth/params"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var clusterConfigData = []byte(`[
+var clusterConfigData = []byte(`
+[
   {
     "networkID": 3,
-    "prod": {
-      "staticnodes": [
-        "enode://7ab298cedc4185a894d21d8a4615262ec6bdce66c9b6783878258e0d5b31013d30c9038932432f70e5b2b6a5cd323bf820554fcb22fbc7b45367889522e9c449@10.1.1.1:30303",
-        "enode://f59e8701f18c79c5cbc7618dc7bb928d44dc2f5405c7d693dad97da2d8585975942ec6fd36d3fe608bfdc7270a34a4dd00f38cfe96b2baa24f7cd0ac28d382a1@10.1.1.2:30303"
-	  ]
-	},
-    "dev": {
-      "staticnodes": [
-        "enode://7ab298cedc4185a894d21d8a4615262ec6bdce66c9b6783878258e0d5b31013d30c9038932432f70e5b2b6a5cd323bf820554fcb22fbc7b45367889522e9c449@10.1.1.1:30303",
-        "enode://f59e8701f18c79c5cbc7618dc7bb928d44dc2f5405c7d693dad97da2d8585975942ec6fd36d3fe608bfdc7270a34a4dd00f38cfe96b2baa24f7cd0ac28d382a1@10.1.1.2:30303"
-	  ]
-	}
+    "staticnodes": [
+      "enode://7ab298cedc4185a894d21d8a4615262ec6bdce66c9b6783878258e0d5b31013d30c9038932432f70e5b2b6a5cd323bf820554fcb22fbc7b45367889522e9c449@10.1.1.1:30303",
+      "enode://f59e8701f18c79c5cbc7618dc7bb928d44dc2f5405c7d693dad97da2d8585975942ec6fd36d3fe608bfdc7270a34a4dd00f38cfe96b2baa24f7cd0ac28d382a1@10.1.1.2:30303"
+    ]
   }
-]`)
+]
+`)
 
 var loadConfigTestCases = []struct {
 	name       string
@@ -311,9 +306,9 @@ var loadConfigTestCases = []struct {
 		func(t *testing.T, dataDir string, nodeConfig *params.NodeConfig, err error) {
 			require.NoError(t, err)
 			require.True(t, nodeConfig.ClusterConfig.Enabled, "cluster configuration is expected to be enabled by default")
-
-			enodes := nodeConfig.ClusterConfig.StaticNodes
-			require.True(t, len(enodes) >= 3)
+			require.True(t, nodeConfig.Discovery)
+			require.True(t, len(nodeConfig.ClusterConfig.StaticNodes) >= 3)
+			require.True(t, len(nodeConfig.ClusterConfig.BootNodes) >= 1)
 		},
 	},
 	{
@@ -343,21 +338,6 @@ var loadConfigTestCases = []struct {
 
 			enodes := nodeConfig.ClusterConfig.StaticNodes
 			require.True(t, len(enodes) >= 2)
-		},
-	},
-	{
-		`select cluster configuration (Mainnet Prod)`,
-		`{
-			"NetworkId": 1,
-			"DataDir": "$TMPDIR",
-			"DevMode": false
-		}`,
-		func(t *testing.T, dataDir string, nodeConfig *params.NodeConfig, err error) {
-			require.NoError(t, err)
-			require.True(t, nodeConfig.ClusterConfig.Enabled, "cluster confguration is expected to be enabled by default")
-
-			enodes := nodeConfig.ClusterConfig.StaticNodes
-			require.True(t, len(enodes) == 0)
 		},
 	},
 	{
@@ -399,6 +379,21 @@ var loadConfigTestCases = []struct {
 			require.True(t, nodeConfig.WhisperConfig.LightClient)
 		},
 	},
+	{
+		`default peer limits`,
+		`{
+			"NetworkId": 4,
+			"DataDir": "$TMPDIR"
+		}`,
+		func(t *testing.T, dataDir string, nodeConfig *params.NodeConfig, err error) {
+			require.NoError(t, err)
+			require.NotNil(t, nodeConfig.RequireTopics)
+			require.Contains(t, nodeConfig.RequireTopics, params.WhisperDiscv5Topic)
+			require.Contains(t, nodeConfig.RequireTopics, params.LesDiscv5Topic)
+			assert.Equal(t, params.WhisperDiscv5Limits, nodeConfig.RequireTopics[params.WhisperDiscv5Topic])
+			assert.Equal(t, params.LesDiscv5Limits, nodeConfig.RequireTopics[params.LesDiscv5Topic])
+		},
+	},
 }
 
 // TestLoadNodeConfig tests loading JSON configuration and setting default values.
@@ -415,10 +410,11 @@ func TestLoadNodeConfig(t *testing.T) {
 	t.Log(tmpDir)
 
 	for _, testCase := range loadConfigTestCases {
-		t.Log("test: " + testCase.name)
-		testCase.configJSON = strings.Replace(testCase.configJSON, "$TMPDIR", tmpDir, -1)
-		nodeConfig, err := params.LoadNodeConfig(testCase.configJSON)
-		testCase.validator(t, tmpDir, nodeConfig, err)
+		t.Run(testCase.name, func(t *testing.T) {
+			testCase.configJSON = strings.Replace(testCase.configJSON, "$TMPDIR", tmpDir, -1)
+			nodeConfig, err := params.LoadNodeConfig(testCase.configJSON)
+			testCase.validator(t, tmpDir, nodeConfig, err)
+		})
 	}
 }
 
